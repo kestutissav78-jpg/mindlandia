@@ -11,36 +11,56 @@ type Props = {
 
 export default function ExecutiveBrief({ nextTask, topRisk, tasks, progress }: Props) {
   return (
-    <section className="mt-8 rounded-3xl border border-emerald-900 bg-gradient-to-r from-emerald-950/30 to-zinc-950 p-6">
-      <p className="text-xs uppercase tracking-[0.3em] text-emerald-400">Executive Brief</p>
+    <section className="mt-8 gradient-border rounded-2xl glow-green p-6"
+      style={{ background: "rgba(52,211,153,0.03)" }}>
+      <p className="text-[10px] font-bold uppercase tracking-[0.35em] text-emerald-400">Executive Brief</p>
 
-      <div className="mt-5 grid gap-4 lg:grid-cols-4">
-        <div className="rounded-2xl border border-zinc-800 bg-black p-5">
-          <p className="text-sm text-zinc-500">Next Action</p>
-          <p className="mt-3 font-bold text-white">
-            {nextTask ? nextTask.title : "Start a council to generate the next action."}
-          </p>
-        </div>
-
-        <div className="rounded-2xl border border-zinc-800 bg-black p-5">
-          <p className="text-sm text-zinc-500">Biggest Risk</p>
-          <p className="mt-3 line-clamp-3 font-bold text-white">{topRisk.slice(0, 160)}</p>
-        </div>
-
-        <div className="rounded-2xl border border-zinc-800 bg-black p-5">
-          <p className="text-sm text-zinc-500">Next Milestone</p>
-          <p className="mt-3 font-bold text-white">
-            {tasks.length > 0
-              ? "Complete this week's high priority tasks"
-              : "Create first council plan"}
-          </p>
-        </div>
-
-        <div className="rounded-2xl border border-zinc-800 bg-black p-5">
-          <p className="text-sm text-zinc-500">Progress</p>
-          <p className="mt-3 text-3xl font-black text-emerald-400">{progress}%</p>
-        </div>
+      <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        {[
+          {
+            label: "Next Action",
+            value: nextTask ? nextTask.title : "Start a council session",
+            accent: false,
+          },
+          {
+            label: "Top Risk",
+            value: topRisk.slice(0, 120) || "Run your first council to identify risks",
+            accent: false,
+          },
+          {
+            label: "Milestone",
+            value: tasks.length > 0 ? "Complete high priority tasks" : "Create first council plan",
+            accent: false,
+          },
+          {
+            label: "Progress",
+            value: `${progress}%`,
+            accent: true,
+          },
+        ].map((s) => (
+          <div key={s.label} className="card-stat p-5">
+            <p className="text-xs text-zinc-600 font-medium">{s.label}</p>
+            <p className={`mt-2.5 font-bold leading-snug ${s.accent ? "text-3xl text-gradient-green" : "text-sm text-zinc-200"}`}>
+              {s.value}
+            </p>
+          </div>
+        ))}
       </div>
+
+      {/* progress bar */}
+      {progress > 0 && (
+        <div className="mt-5">
+          <div className="h-1 w-full rounded-full bg-zinc-900">
+            <div
+              className="h-1 rounded-full transition-all duration-700"
+              style={{
+                width: `${progress}%`,
+                background: "linear-gradient(90deg, #34d399, #06b6d4)",
+              }}
+            />
+          </div>
+        </div>
+      )}
     </section>
   );
 }

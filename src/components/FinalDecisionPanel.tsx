@@ -9,48 +9,39 @@ type Props = {
 };
 
 export default function FinalDecisionPanel({
-  decision,
-  onGenerateTasks,
-  onGenerateRoadmap,
-  onGenerateMvpPlan,
-  onGenerateExecutionPack,
+  decision, onGenerateTasks, onGenerateRoadmap, onGenerateMvpPlan, onGenerateExecutionPack,
 }: Props) {
   if (!decision) return null;
 
   return (
-    <section className="mt-6 rounded-3xl border border-emerald-900 bg-black p-5">
-      <p className="text-xs uppercase tracking-[0.3em] text-emerald-400">Final Council Answer</p>
+    <section className="mt-6 fade-up gradient-border rounded-2xl glow-green overflow-hidden"
+      style={{ background: "rgba(52,211,153,0.02)" }}>
 
-      <p className="mt-4 whitespace-pre-wrap text-zinc-200">{decision}</p>
+      {/* label bar */}
+      <div className="flex items-center gap-3 border-b border-zinc-900 px-6 py-4">
+        <div className="flex h-6 w-6 items-center justify-center rounded-full bg-emerald-500/20 text-xs text-emerald-400">✓</div>
+        <p className="text-[10px] font-bold uppercase tracking-[0.35em] text-emerald-400">Final Council Answer</p>
+      </div>
 
-      <div className="mt-6 flex flex-wrap gap-3">
-        <button
-          onClick={onGenerateTasks}
-          className="rounded-xl bg-emerald-400 px-5 py-3 font-bold text-black hover:bg-emerald-300"
-        >
-          Generate Tasks
-        </button>
+      {/* decision text */}
+      <div className="px-6 py-5">
+        <p className="whitespace-pre-wrap text-sm leading-relaxed text-zinc-200">{decision}</p>
+      </div>
 
-        <button
-          onClick={onGenerateRoadmap}
-          className="rounded-xl border border-zinc-700 px-5 py-3 font-bold hover:bg-zinc-900"
-        >
-          Generate Roadmap
-        </button>
-
-        <button
-          onClick={onGenerateMvpPlan}
-          className="rounded-xl border border-zinc-700 px-5 py-3 font-bold hover:bg-zinc-900"
-        >
-          Generate MVP Plan
-        </button>
-
-        <button
-          onClick={onGenerateExecutionPack}
-          className="rounded-xl border border-zinc-700 px-5 py-3 font-bold hover:bg-zinc-900"
-        >
-          Generate Execution Pack
-        </button>
+      {/* actions */}
+      <div className="border-t border-zinc-900 px-6 py-4">
+        <p className="text-[10px] font-semibold uppercase tracking-[0.3em] text-zinc-600 mb-3">Generate</p>
+        <div className="flex flex-wrap gap-2">
+          <button
+            onClick={onGenerateTasks}
+            className="btn-primary rounded-xl px-5 py-2.5 text-sm font-bold text-black"
+          >
+            ⚡ Tasks
+          </button>
+          <button onClick={onGenerateRoadmap}     className="btn-ghost rounded-xl px-5 py-2.5 text-sm font-semibold text-zinc-300">Roadmap</button>
+          <button onClick={onGenerateMvpPlan}     className="btn-ghost rounded-xl px-5 py-2.5 text-sm font-semibold text-zinc-300">MVP Plan</button>
+          <button onClick={onGenerateExecutionPack} className="btn-ghost rounded-xl px-5 py-2.5 text-sm font-semibold text-zinc-300">Execution Pack</button>
+        </div>
       </div>
     </section>
   );
