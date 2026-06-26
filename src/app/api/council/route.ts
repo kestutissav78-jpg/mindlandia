@@ -1,4 +1,5 @@
 import OpenAI from "openai";
+import Anthropic from "@anthropic-ai/sdk";
 import { GoogleGenAI } from "@google/genai";
 
 const MODEL = "gpt-4.1-mini";
@@ -17,6 +18,20 @@ async function askAgent(
   });
 
   return response.choices[0]?.message?.content || "No reply returned.";
+}
+
+async function askClaude(systemPrompt: string, userPrompt: string): Promise<string> {
+  const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY! });
+  const stream = await anthropic.messages.stream({
+    model: "claude-opus-4-8",
+    max_tokens: 1024,
+    thinking: { type: "adaptive" },
+    system: systemPrompt,
+    messages: [{ role: "user", content: userPrompt }],
+  });
+  const response = await stream.finalMessage();
+  const block = response.content.find((b) => b.type === "text");
+  return block && block.type === "text" ? block.text : "No reply returned.";
 }
 
 async function askGemini(systemPrompt: string, userPrompt: string): Promise<string> {
@@ -66,13 +81,21 @@ Focus on clear next steps.`,
       firstUserMessage as string
     );
 
-    const claude = await askAgent(
-      openai,
-      `You are Claude Critic in MindLandia.
+    const claudeAvailable = !!process.env.ANTHROPIC_API_KEY;
+    const claude = claudeAvailable
+      ? await askClaude(
+          `You are Claude Critic in MindLandia.
 Always reply in ${replyLanguage}.
 Challenge the strategy, find weak logic, risks, missing assumptions, over-optimism, and practical blockers. Be direct but constructive.`,
-      `Founder topic:\n${topic}\n\nGPT Strategist response:\n${gpt}\n\nCritique the GPT strategy. Identify risks, gaps and what must be validated before execution.`
-    );
+          `Founder topic:\n${topic}\n\nGPT Strategist response:\n${gpt}\n\nCritique the GPT strategy. Identify risks, gaps and what must be validated before execution.`
+        )
+      : await askAgent(
+          openai,
+          `You are Claude Critic in MindLandia.
+Always reply in ${replyLanguage}.
+Challenge the strategy, find weak logic, risks, missing assumptions, over-optimism, and practical blockers. Be direct but constructive.`,
+          `Founder topic:\n${topic}\n\nGPT Strategist response:\n${gpt}\n\nCritique the GPT strategy. Identify risks, gaps and what must be validated before execution.`
+        );
 
     const geminiAvailable = !!process.env.GEMINI_API_KEY;
     const gemini = geminiAvailable
