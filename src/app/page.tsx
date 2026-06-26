@@ -80,12 +80,12 @@ export default function Home() {
             AI Council Workspace
           </p>
           <h1 className="mt-4 text-5xl font-black leading-[1.05] tracking-tight md:text-7xl">
-            <span className="text-gradient">Your projects,</span>
+            <span className="text-gradient">Smarter decisions.</span>
             <br />
-            <span className="text-gradient-green">decided by AI.</span>
+            <span className="text-gradient-green">Faster execution.</span>
           </h1>
           <p className="mt-5 max-w-xl text-base text-zinc-500 leading-relaxed">
-            Three AI models debate every decision. One final answer. Built for founders who move fast.
+            Three specialized AI models analyse every challenge, pressure-test each other, and deliver one clear answer — so you act on insight, not instinct.
           </p>
         </section>
 
