@@ -1,4 +1,5 @@
 import OpenAI from "openai";
+import { GoogleGenAI } from "@google/genai";
 
 const MODEL = "gpt-4.1-mini";
 
@@ -16,6 +17,15 @@ async function askAgent(
   });
 
   return response.choices[0]?.message?.content || "No reply returned.";
+}
+
+async function askGemini(systemPrompt: string, userPrompt: string): Promise<string> {
+  const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! });
+  const response = await ai.models.generateContent({
+    model: "gemini-2.0-flash",
+    contents: `${systemPrompt}\n\n${userPrompt}`,
+  });
+  return response.text ?? "No reply returned.";
 }
 
 export async function POST(req: Request) {
@@ -64,13 +74,17 @@ Challenge the strategy, find weak logic, risks, missing assumptions, over-optimi
       `Founder topic:\n${topic}\n\nGPT Strategist response:\n${gpt}\n\nCritique the GPT strategy. Identify risks, gaps and what must be validated before execution.`
     );
 
-    const gemini = await askAgent(
-      openai,
-      `You are Gemini Researcher in MindLandia.
-Always reply in ${replyLanguage}.
-Add technical, market, product and research perspective. Be practical and implementation-focused.`,
-      `Founder topic:\n${topic}\n\nGPT Strategist response:\n${gpt}\n\nClaude Critic response:\n${claude}\n\nAdd technical, research and product implementation perspective.`
-    );
+    const geminiAvailable = !!process.env.GEMINI_API_KEY;
+    const gemini = geminiAvailable
+      ? await askGemini(
+          `You are Gemini Researcher in MindLandia. Always reply in ${replyLanguage}. Add technical, market, product and research perspective. Be practical and implementation-focused.`,
+          `Founder topic:\n${topic}\n\nGPT Strategist response:\n${gpt}\n\nClaude Critic response:\n${claude}\n\nAdd technical, research and product implementation perspective.`
+        )
+      : await askAgent(
+          openai,
+          `You are Gemini Researcher in MindLandia. Always reply in ${replyLanguage}. Add technical, market, product and research perspective. Be practical and implementation-focused.`,
+          `Founder topic:\n${topic}\n\nGPT Strategist response:\n${gpt}\n\nClaude Critic response:\n${claude}\n\nAdd technical, research and product implementation perspective.`
+        );
 
     const decision = await askAgent(
       openai,
