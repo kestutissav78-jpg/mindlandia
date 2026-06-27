@@ -2,6 +2,8 @@ import OpenAI from "openai";
 import Anthropic from "@anthropic-ai/sdk";
 import { GoogleGenAI } from "@google/genai";
 
+export const maxDuration = 60;
+
 const MODEL = "gpt-4.1-mini";
 
 async function askAgent(
@@ -22,14 +24,12 @@ async function askAgent(
 
 async function askClaude(systemPrompt: string, userPrompt: string): Promise<string> {
   const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY! });
-  const stream = await anthropic.messages.stream({
+  const response = await anthropic.messages.create({
     model: "claude-opus-4-8",
     max_tokens: 1024,
-    thinking: { type: "adaptive" },
     system: systemPrompt,
     messages: [{ role: "user", content: userPrompt }],
   });
-  const response = await stream.finalMessage();
   const block = response.content.find((b) => b.type === "text");
   return block && block.type === "text" ? block.text : "No reply returned.";
 }
@@ -85,41 +85,42 @@ You are also a senior UK mortgage advisor with 20+ years of hands-on experience.
 - Self-employed mortgage challenges, contractor mortgages, complex income cases
 When the topic relates to mortgage advice, mortgage business, property finance or financial services, bring this deep expertise to your response.`;
 
-    const gpt = await askAgent(
-      openai,
-      `You are GPT Strategist in MindLandia. ${mortgageContext}
+    const gptSystemPrompt = `You are GPT Strategist in MindLandia. ${mortgageContext}
 Always reply in ${replyLanguage}.
 Give concise, practical strategic advice for startups, apps, product decisions, business planning, and UK mortgage advisory businesses.
-Focus on clear next steps.`,
-      firstUserMessage as string
-    );
+Focus on clear next steps. Keep your response under 200 words.`;
 
-    const claudeAvailable = !!process.env.ANTHROPIC_API_KEY;
-    const claude = claudeAvailable
-      ? await askClaude(
-          `You are Claude Critic in MindLandia. ${mortgageContext}
+    const claudeSystemPrompt = `You are Claude Critic in MindLandia. ${mortgageContext}
 Always reply in ${replyLanguage}.
-Challenge the strategy, find weak logic, risks, missing assumptions, regulatory gaps, over-optimism, and practical blockers — especially in UK mortgage and financial services context. Be direct but constructive.`,
-          `Founder topic:\n${topic}\n\nGPT Strategist response:\n${gpt}\n\nCritique the GPT strategy. Identify risks, gaps and what must be validated before execution.`
-        )
-      : await askAgent(
-          openai,
-          `You are Claude Critic in MindLandia. ${mortgageContext}
-Always reply in ${replyLanguage}.
-Challenge the strategy, find weak logic, risks, missing assumptions, regulatory gaps, over-optimism, and practical blockers — especially in UK mortgage and financial services context. Be direct but constructive.`,
-          `Founder topic:\n${topic}\n\nGPT Strategist response:\n${gpt}\n\nCritique the GPT strategy. Identify risks, gaps and what must be validated before execution.`
-        );
+Challenge the strategy, find weak logic, risks, missing assumptions, regulatory gaps, over-optimism, and practical blockers — especially in UK mortgage and financial services context. Be direct but constructive. Keep your response under 200 words.`;
 
-    const geminiAvailable = !!process.env.GEMINI_API_KEY;
-    const gemini = geminiAvailable
+    // Run GPT and Claude in parallel to save time
+    const [gpt, claude] = await Promise.all([
+      askAgent(openai, gptSystemPrompt, firstUserMessage as string),
+      process.env.ANTHROPIC_API_KEY
+        ? askClaude(
+            claudeSystemPrompt,
+            `Founder topic:\n${topic}\n\nProvide your critique. Identify risks, gaps and what must be validated before execution.`
+          )
+        : askAgent(
+            openai,
+            claudeSystemPrompt,
+            `Founder topic:\n${topic}\n\nProvide your critique. Identify risks, gaps and what must be validated before execution.`
+          ),
+    ]);
+
+    const geminiSystemPrompt = `You are Gemini Researcher in MindLandia. ${mortgageContext}
+Always reply in ${replyLanguage}. Add technical, market, regulatory research and product implementation perspective. Include relevant UK mortgage market data, FCA guidance, and competitor analysis where applicable. Be practical and implementation-focused. Keep your response under 200 words.`;
+
+    const gemini = process.env.GEMINI_API_KEY
       ? await askGemini(
-          `You are Gemini Researcher in MindLandia. ${mortgageContext} Always reply in ${replyLanguage}. Add technical, market, regulatory research and product implementation perspective. Include relevant UK mortgage market data, FCA guidance, and competitor analysis where applicable. Be practical and implementation-focused.`,
-          `Founder topic:\n${topic}\n\nGPT Strategist response:\n${gpt}\n\nClaude Critic response:\n${claude}\n\nAdd technical, research and product implementation perspective.`
+          geminiSystemPrompt,
+          `Founder topic:\n${topic}\n\nGPT Strategist:\n${gpt}\n\nClaude Critic:\n${claude}\n\nAdd your research and implementation perspective.`
         )
       : await askAgent(
           openai,
-          `You are Gemini Researcher in MindLandia. ${mortgageContext} Always reply in ${replyLanguage}. Add technical, market, regulatory research and product implementation perspective. Include relevant UK mortgage market data, FCA guidance, and competitor analysis where applicable. Be practical and implementation-focused.`,
-          `Founder topic:\n${topic}\n\nGPT Strategist response:\n${gpt}\n\nClaude Critic response:\n${claude}\n\nAdd technical, research and product implementation perspective.`
+          geminiSystemPrompt,
+          `Founder topic:\n${topic}\n\nGPT Strategist:\n${gpt}\n\nClaude Critic:\n${claude}\n\nAdd your research and implementation perspective.`
         );
 
     const decision = await askAgent(
