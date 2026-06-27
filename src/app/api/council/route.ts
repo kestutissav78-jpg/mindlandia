@@ -43,6 +43,21 @@ async function askGemini(systemPrompt: string, userPrompt: string): Promise<stri
   return response.text ?? "No reply returned.";
 }
 
+async function askGeminiSafe(
+  openai: OpenAI,
+  systemPrompt: string,
+  userPrompt: string
+): Promise<string> {
+  if (!process.env.GEMINI_API_KEY) {
+    return askAgent(openai, systemPrompt, userPrompt);
+  }
+  try {
+    return await askGemini(systemPrompt, userPrompt);
+  } catch {
+    return askAgent(openai, systemPrompt, userPrompt);
+  }
+}
+
 export async function POST(req: Request) {
   try {
     const body = await req.json();
@@ -112,16 +127,11 @@ Challenge the strategy, find weak logic, risks, missing assumptions, regulatory 
     const geminiSystemPrompt = `You are Gemini Researcher in MindLandia. ${mortgageContext}
 Always reply in ${replyLanguage}. Add technical, market, regulatory research and product implementation perspective. Include relevant UK mortgage market data, FCA guidance, and competitor analysis where applicable. Be practical and implementation-focused. Keep your response under 200 words.`;
 
-    const gemini = process.env.GEMINI_API_KEY
-      ? await askGemini(
-          geminiSystemPrompt,
-          `Founder topic:\n${topic}\n\nGPT Strategist:\n${gpt}\n\nClaude Critic:\n${claude}\n\nAdd your research and implementation perspective.`
-        )
-      : await askAgent(
-          openai,
-          geminiSystemPrompt,
-          `Founder topic:\n${topic}\n\nGPT Strategist:\n${gpt}\n\nClaude Critic:\n${claude}\n\nAdd your research and implementation perspective.`
-        );
+    const gemini = await askGeminiSafe(
+      openai,
+      geminiSystemPrompt,
+      `Founder topic:\n${topic}\n\nGPT Strategist:\n${gpt}\n\nClaude Critic:\n${claude}\n\nAdd your research and implementation perspective.`
+    );
 
     const decision = await askAgent(
       openai,
