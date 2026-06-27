@@ -8,14 +8,40 @@ interface BeforeInstallPromptEvent extends Event {
   userChoice: Promise<{ outcome: "accepted" | "dismissed" }>;
 }
 
+function isIos() {
+  if (typeof navigator === "undefined") return false;
+  return /iphone|ipad|ipod/i.test(navigator.userAgent);
+}
+
+function isInStandaloneMode() {
+  if (typeof window === "undefined") return false;
+  return window.matchMedia("(display-mode: standalone)").matches ||
+    ("standalone" in window.navigator && (window.navigator as { standalone?: boolean }).standalone === true);
+}
+
+const DISMISSED_KEY = "ml-install-dismissed";
+
 export default function InstallBanner() {
   const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
   const [visible, setVisible] = useState(false);
-  const [installed, setInstalled] = useState(false);
+  const [ios, setIos] = useState(false);
 
   useEffect(() => {
-    if (window.matchMedia("(display-mode: standalone)").matches) return;
+    if (isInStandaloneMode()) return;
+    if (sessionStorage.getItem(DISMISSED_KEY)) return;
 
+    const iosDevice = isIos();
+
+    if (iosDevice) {
+      // iOS Safari — no beforeinstallprompt, show manual instructions after delay
+      const t = setTimeout(() => {
+        setIos(true);
+        setVisible(true);
+      }, 3000);
+      return () => clearTimeout(t);
+    }
+
+    // Android Chrome / other browsers
     const handler = (e: Event) => {
       e.preventDefault();
       setDeferredPrompt(e as BeforeInstallPromptEvent);
@@ -23,44 +49,70 @@ export default function InstallBanner() {
     };
 
     window.addEventListener("beforeinstallprompt", handler);
-    window.addEventListener("appinstalled", () => {
-      setInstalled(true);
-      setVisible(false);
-    });
-
+    window.addEventListener("appinstalled", () => setVisible(false));
     return () => window.removeEventListener("beforeinstallprompt", handler);
   }, []);
 
-  if (!visible || installed) return null;
+  function dismiss() {
+    sessionStorage.setItem(DISMISSED_KEY, "1");
+    setVisible(false);
+  }
 
-  const handleInstall = async () => {
+  async function handleInstall() {
     if (!deferredPrompt) return;
     await deferredPrompt.prompt();
     const { outcome } = await deferredPrompt.userChoice;
     if (outcome === "accepted") setVisible(false);
-  };
+  }
+
+  if (!visible) return null;
 
   return (
-    <div className="fixed bottom-4 left-1/2 z-50 w-[calc(100%-2rem)] max-w-sm -translate-x-1/2 rounded-2xl border border-zinc-800 bg-zinc-950 p-4 shadow-2xl shadow-black/60">
-      <button
-        onClick={() => setVisible(false)}
-        className="absolute right-3 top-3 text-zinc-500 hover:text-white"
-        aria-label="Close"
-      >
-        ✕
-      </button>
+    <div className="fixed bottom-4 left-1/2 z-50 w-[calc(100%-2rem)] max-w-sm -translate-x-1/2 rounded-2xl border border-zinc-800 bg-zinc-950 p-4 shadow-2xl shadow-black/60 fade-up">
+      {/* close */}
+      <button onClick={dismiss} className="absolute right-3 top-3 text-zinc-500 hover:text-white text-lg leading-none">✕</button>
+
+      {/* header */}
       <div className="flex items-center gap-3">
-        <Image src="/icon-192.png" alt="MindLandia" width={48} height={48} className="rounded-xl" />
+        <Image src="/icon-192.png" alt="MindLandia" width={44} height={44} className="rounded-xl" />
         <div>
-          <p className="font-bold text-white">MindLandia</p>
-          <p className="text-sm text-zinc-400">Įdiegk kaip programą</p>
+          <p className="font-black text-white">MindLandia</p>
+          <p className="text-xs text-zinc-500">Add to Home Screen</p>
         </div>
       </div>
-      <button
-        onClick={handleInstall}
-        className="mt-3 w-full rounded-xl bg-emerald-500 py-2.5 text-sm font-bold text-black hover:bg-emerald-400 active:scale-95 transition-transform"
-      >
-        Įdiegti
+
+      {ios ? (
+        /* iOS instructions */
+        <div className="mt-4 rounded-xl border border-zinc-800 bg-black p-3 space-y-2">
+          <p className="text-xs font-semibold text-zinc-300">Install on iPhone / iPad:</p>
+          <div className="flex items-center gap-2 text-xs text-zinc-400">
+            <span className="text-base">1.</span>
+            <span>Tap the <strong className="text-white">Share</strong> button</span>
+            <span className="ml-auto text-lg">⎙</span>
+          </div>
+          <div className="flex items-center gap-2 text-xs text-zinc-400">
+            <span className="text-base">2.</span>
+            <span>Choose <strong className="text-white">&quot;Add to Home Screen&quot;</strong></span>
+            <span className="ml-auto text-base">＋</span>
+          </div>
+          <div className="flex items-center gap-2 text-xs text-zinc-400">
+            <span className="text-base">3.</span>
+            <span>Tap <strong className="text-white">Add</strong> — done!</span>
+            <span className="ml-auto text-base">✓</span>
+          </div>
+        </div>
+      ) : (
+        /* Android / Chrome one-tap install */
+        <button
+          onClick={handleInstall}
+          className="btn-primary mt-4 w-full rounded-xl py-3 text-sm font-black text-black"
+        >
+          Install App
+        </button>
+      )}
+
+      <button onClick={dismiss} className="mt-3 w-full text-center text-xs text-zinc-600 hover:text-zinc-400">
+        Not now
       </button>
     </div>
   );
